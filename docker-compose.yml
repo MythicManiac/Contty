@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  contty:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./Contty:/code:rw
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=localhost
+      - SECRET_KEY=xxx
