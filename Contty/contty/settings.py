@@ -8,6 +8,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(str, "localhost"),
     DATABASE_URL=(str, "sqlite:////contty/database.db"),
+    CADDYFILE_LOCATION=(str, "/caddy/Caddyfile"),
 )
 
 
