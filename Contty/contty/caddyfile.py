@@ -78,7 +78,7 @@ class Caddyfile(object):
         if not line.startswith(START_BLOCK_KEYWORD):
             raise AttributeError("Invalid line provided")
 
-        line = line.replace(START_BLOCK_KEYWORD).strip()
+        line = line.replace(START_BLOCK_KEYWORD, "").strip()
         mode = line.split(" ")[0]
         lines_read = 1
 
@@ -92,23 +92,25 @@ class Caddyfile(object):
         while index < len(lines):
             line = lines[index + lines_read]
             lines_read += 1
-            block_content.append(line)
             if line.startswith(stop):
                 break
+            else:
+                block_content.append(line)
 
         if mode == MANUAL_BLOCK_MODE:
             self.add_manual_block(block_content)
 
         return lines_read
 
-    def parse(self, raw_lines):
-        lines = []
+    def parse(self, lines):
+        self.unmanaged_config = []
 
         index = 0
         while index < len(lines):
             line = lines[index].strip()
             if not line.startswith(CONTTY_PREFIX):
-                lines.append(line)
+                if line or not self.unmanaged_config or not self.unmanaged_config[-1]:
+                    self.unmanaged_config.append(line)
                 index += 1
                 continue
 
@@ -146,19 +148,22 @@ https://{hostname} {{
             "block_header": self.build_automatic_block_header(kwargs),
             "block_footer": self.build_block_footer(),
         })
-        return template.format(**kwargs)
+        return template.format(**kwargs).split("\n")
 
     def get_lines(self):
         lines = []
         for entry in self.unmanaged_config:
             lines.append(entry)
         for block in self.manual_blocks:
-            lines.append("\n" + self.build_manual_block_header())
+            lines.append("")
+            lines.append(self.build_manual_block_header())
             for line in block:
                 lines.append(line)
-            lines.append(self.build_block_footer() + "\n")
+            lines.append(self.build_block_footer())
+            lines.append("")
         for config in self.automatic_blocks:
-            lines.append(self.build_automatic_block(**config))
+            for line in self.build_automatic_block(**config):
+                lines.append(line)
         return lines
 
     def write_to_file(self, filepath):

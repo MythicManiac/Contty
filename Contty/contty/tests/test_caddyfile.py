@@ -23,7 +23,7 @@ https://test.net {
 # CONTTY ENDBLOCK
 """
     result = caddyfile.get_lines()
-    assert result == [output]
+    assert result == output.split("\n")
 
 
 def test_manual_block_writing():
@@ -34,12 +34,14 @@ def test_manual_block_writing():
         "before I see John Wicks.",
     ]
     result_data = [
-        "\n# CONTTY STARTBLOCK MANUAL",
+        "",
+        "# CONTTY STARTBLOCK MANUAL",
         "This is caddy,",
         "but I'm not your daddy.",
         "Just parsing configs,",
         "before I see John Wicks.",
-        "# CONTTY ENDBLOCK\n",
+        "# CONTTY ENDBLOCK",
+        "",
     ]
     caddyfile = Caddyfile()
     caddyfile.add_manual_block(manual_data)
@@ -147,3 +149,47 @@ https://kek.org {
 """
     result = "\n".join(caddyfile.get_lines())
     assert result == correct_result
+
+
+def test_write_then_read():
+    manual_block_1 = [
+        "This is caddy,",
+        "but I'm not your daddy.",
+    ]
+    manual_block_2 = [
+        "Just parsing configs,",
+        "before I see John Wicks.",
+    ]
+    automatic_block_1 = {
+        "hostname": "test.net",
+        "email": "te@test.net",
+        "service": "someService",
+        "port": "8080",
+    }
+    automatic_block_2 = {
+        "hostname": "kek.org",
+        "email": "kek@kek.org",
+        "service": "unservice",
+        "port": "67",
+    }
+    unmanaged_config = [
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "Aliquam quis nibh ullamcorper, lacinia nibh non, porttitor eros.",
+        "Aliquam faucibus dui dignissim interdum semper.",
+    ]
+
+    caddyfile = Caddyfile()
+    caddyfile.add_automatic_block_config(automatic_block_1)
+    caddyfile.add_manual_block(manual_block_2)
+    caddyfile.add_automatic_block_config(automatic_block_2)
+    caddyfile.add_manual_block(manual_block_1)
+    for line in unmanaged_config:
+        caddyfile.unmanaged_config.append(line)
+
+    output = caddyfile.get_lines()
+
+    caddyfile2 = Caddyfile()
+    caddyfile2.parse(output)
+    output2 = caddyfile2.get_lines()
+
+    assert output == output2
