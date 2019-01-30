@@ -60,14 +60,17 @@ class Caddyfile(object):
             lines = f.readlines()
         self.parse(lines)
 
-    def add_automatic_block(self, config_string):
+    def add_automatic_block_config(self, config):
+        self.automatic_blocks.append(config)
+
+    def parse_automatic_block_config(self, config_string):
         config = json.loads(config_string)
         self.automatic_blocks.append(config)
 
     def add_manual_block(self, block_content):
         self.manual_blocks.append(block_content)
 
-    def join_strings(*args):
+    def join_strings(self, *args):
         return " ".join(args)
 
     def parse_contty_block(self, line, index, lines):
@@ -111,29 +114,55 @@ class Caddyfile(object):
 
             index += self.parse_contty_block(line, index, lines)
 
+    def build_automatic_block_header(self, data):
+        prefix = self.join_strings(
+            CONTTY_PREFIX,
+            START_BLOCK_KEYWORD,
+            AUTOMATIC_BLOCK_MODE
+        )
+        data = json.dumps(data)
+        return "{prefix} {data}".format(prefix=prefix, data=data)
+
+    def build_manual_block_header(self):
+        return self.join_strings(CONTTY_PREFIX, START_BLOCK_KEYWORD, MANUAL_BLOCK_MODE)
+
+    def build_block_footer(self):
+        return self.join_strings(CONTTY_PREFIX, END_BLOCK_KEYWORD)
+
     def build_automatic_block(self, **kwargs):
-        return """
-https://{hostname} {
+        template = """
+{block_header}
+https://{hostname} {{
     header -Server
-    proxy / {service}:{port} {
+    proxy / {service}:{port} {{
         websocket
         transparent
-    }
+    }}
     tls {email}
-}
-        """.format(**kwargs)
+}}
+{block_footer}
+"""
+        kwargs.update({
+            "block_header": self.build_automatic_block_header(kwargs),
+            "block_footer": self.build_block_footer(),
+        })
+        return template.format(**kwargs)
 
     def get_lines(self):
+        lines = []
         for entry in self.unmanaged_config:
-            yield entry
+            lines.append(entry)
         for block in self.manual_blocks:
+            lines.append("\n" + self.build_manual_block_header())
             for line in block:
-                yield line
+                lines.append(line)
+            lines.append(self.build_block_footer() + "\n")
         for config in self.automatic_blocks:
-            yield self.build_automatic_block(**config)
+            lines.append(self.build_automatic_block(**config))
+        return lines
 
     def write_to_file(self, filepath):
         path = sys.path.abspath(filepath)
-        lines = list(self.get_lines())  # Buffer in case something fails
+        lines = self.get_lines()
         with open(path, "w") as f:
             f.writelines(lines)
